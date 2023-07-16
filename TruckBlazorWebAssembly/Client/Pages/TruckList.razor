@@ -1,0 +1,213 @@
+﻿@page "/TruckList"
+@inject HttpClient httpClient
+@using TruckBlazorWebAssembly.Shared
+@using SAPBlazorAlert
+@using SAPBlazorAnimate
+@inject IJSRuntime JsRuntime
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+<style>
+    .my-loader-container .k-loader-container-inner {
+        background-color: indianred;
+        padding: 80px;
+    }
+
+    .hr-style {
+        border-color: rgba(0, 1, 123, 0.2)
+    }
+
+  .myHeaderGrid  .k-grid-header {
+        
+        background-color:#9fb7f0;
+    }
+
+  
+    .custom-row-colors .k-grid-table .k-master-row {
+        background-color: lightcyan;
+    }
+
+    .custom-row-colors .k-grid-table .k-master-row:hover {
+        background-color: pink;
+    }
+
+    .custom-row-colors .k-grid-table .k-master-row.k-alt {
+        background-color:whitesmoke;
+    }
+
+        .custom-row-colors .k-grid-table .k-master-row.k-alt:hover {
+            background-color: cyan;
+        }
+
+
+</style>
+
+@*Alert*@
+<SAPAlertBox @ref="Alert1"
+             AlertBoxSize="SAPAlertBoxSize.Small"
+             FooterText="Product by Ali Jahangard"
+             SAPAlertType="@SAPAlertType.Info"
+             AnimationType="@AnimateBook.ZoomEntrances.ZoomIn.Fast()"
+             Title="@TitleModalBody">
+    <p>
+
+        @*you can set your alert body here ,
+            you can add buttons , or tables and any data u want.
+
+            below you can add any action and event u want*@
+        @*<button @onclick="cancel" class="btn btn-info"/>*@
+    </p>
+    <button @onclick="() => this.Alert1.HideAlert()" class="btn btn-info">
+        Confirm
+    </button>
+</SAPAlertBox>
+@*Loading*@
+<TelerikLoaderContainer Visible="@(trucks == null ? true : false)">
+    <Template>
+        <TelerikLoader></TelerikLoader>
+        <div>
+            <span><TelerikIcon Icon="information"></TelerikIcon></span>
+            <span class="text text-primary">!...Please Wait</span>
+        </div>
+    </Template>
+</TelerikLoaderContainer>
+
+<h3>TruckList</h3>
+<a href="/TruckDetail" class="btn btn-primary  ">AddTruck</a>
+<br />
+<div class='row'>
+    <div class='col-12 col-md-6 col-lg-12 border-primary'>
+        <TelerikGrid Data="@trucks" FilterMode="@GridFilterMode.FilterMenu" Class="custom-row-colors myHeaderGrid"
+                     Sortable="true" Pageable="true" PageSize="4" Groupable="true" Resizable="true" Reorderable="true" Width="100%"
+                     OnUpdate="@UpdateHandler" ConfirmDelete="true" EditMode="@GridEditMode.Popup" EnableLoaderContainer="true">
+
+
+            <GridColumns>
+
+                <GridColumn Field="ID" Title="کد" Width="5rem" Editable="false" Groupable="false" />
+                <GridColumn Field="Title" Title="مدل کامیون" Width="5rem" />
+                <GridColumn Field="Barcode" Title="بارکد" Width="5rem" />
+                <GridColumn Field="SmartCode" Title="کد هوشمند" Width="7rem" />
+                <GridColumn Field="OwnerName" Title="مالک کامیون" Width="7rem" />
+                <GridColumn Field="OwnerMobile" Title="همراه" Width="7rem" />
+                <GridColumn Field="Carryingweight" Title="وزن بار" Width="5rem">
+                    <Template>
+                        @{ var sumCarryingweight = context as Truck; }
+                        @(sumCarryingweight.Carryingweight.Value.ToString("N0"))
+                    </Template>
+                    <FooterTemplate>
+                        <div class="demo-text-center">
+                            ResultMax: @context.Max?.ToString("N0")
+                            ResultSum: @context.Sum?.ToString("N0")
+                        </div>
+                    </FooterTemplate>
+                </GridColumn>
+
+                <GridCommandColumn Width="12rem" Resizable="false" Title="عملیات">
+                    @*<GridCommandButton Command="Save" Icon="save" ShowInEdit="true">@Localizer[nameof(TelerikMessages.Grid_Update)]</GridCommandButton>*@
+                    @*<GridCommandButton Command="Edit" Icon="edit" Primary="true">@Localizer[nameof(TelerikMessages.Grid_Edit)]</GridCommandButton>*@
+                    <GridCommandButton Command="MyCommandDelete" Icon="delete" ShowInEdit="false" OnClick="@MyCustomCommandOnClickDeleteHandler" ThemeColor="@ThemeConstants.Button.ThemeColor.Error" >Delete</GridCommandButton>
+                    <GridCommandButton Command="Cancel" Icon="cancel" ShowInEdit="true"></GridCommandButton>
+                    <GridCommandButton Command="MyCommandEdit" Icon="edit" ShowInEdit="false" OnClick="@MyCustomCommandOnClickUpdateHandler" ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"  >Edit</GridCommandButton>
+                </GridCommandColumn>
+
+            </GridColumns>
+
+            <GridToolBar>
+                @*<GridCommandButton Command="Add" Icon="plus" Primary="true">@Localizer[nameof(TelerikMessages.Grid_Create)]</GridCommandButton>*@
+                <GridCommandButton Command="ExcelExport" Icon="file-excel" Class="btn btn-primary">Export to Excel</GridCommandButton>
+            </GridToolBar>
+            <GridExport>
+                <GridExcelExport FileName="List_Trucks" AllPages="true" />
+            </GridExport>
+
+            <GridAggregates>
+                <GridAggregate Field=@nameof(Truck.Carryingweight) Aggregate="@GridAggregateType.Sum" />
+                <GridAggregate Field=@nameof(Truck.Carryingweight) Aggregate="@GridAggregateType.Max" />
+                @*<GridAggregate Field=@nameof(ProductDto.UnitsOnOrder) Aggregate="@GridAggregateType.Sum" />
+                <GridAggregate Field=@nameof(ProductDto.UnitsInStock) Aggregate="@GridAggregateType.Min" />
+                <GridAggregate Field=@nameof(ProductDto.UnitsInStock) Aggregate="@GridAggregateType.Max" />*@
+            </GridAggregates>
+        </TelerikGrid>
+    </div>
+</div>
+
+
+@code {
+
+    List<Truck>? trucks = new List<Truck>();
+    public SAPAlertBox Alert1;
+    string TitleModalBody = null;
+
+    
+
+    protected override async Task OnInitializedAsync()
+    {
+        trucks = null;
+        await Task.Delay(4000);
+        await Task.Run(GetAllTruckAsync);
+        //trucks = await GetAllTruckAsync();
+    }
+
+    private async Task<List<Truck>> GetAllTruckAsync()
+    {
+        var lstTruck = await httpClient.GetFromJsonAsync<List<Truck>>("Trucks"); //TrucksController
+        trucks = lstTruck.ToList();
+        return trucks;
+
+    }
+
+    //send Id  To Page Details
+    [Parameter]
+    public string myPassedvalueID { get; set; } = String.Empty;
+    private async Task MyCustomCommandOnClickUpdateHandler(GridCommandEventArgs args)
+    {
+        Truck cuurItem = args.Item as Truck;
+        int id = cuurItem.ID;
+        myPassedvalueID = id.ToString();
+        navigationManager.NavigateTo($"/TruckDetail/{myPassedvalueID}");
+
+    }
+
+
+
+    public async Task MyCustomCommandOnClickDeleteHandler(GridCommandEventArgs args)
+    {
+        Truck cuurItem = args.Item as Truck;
+        int id = cuurItem.ID;
+        HttpResponseMessage response;
+
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", $"آیا از حذف کامیون مورد نظر مطمئن هستید؟ '{cuurItem.Title}'"); // Confirm
+        if (confirmed)
+        {
+
+            response = await httpClient.DeleteAsync($"Trucks/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                trucks = await GetAllTruckAsync();
+                this.Alert1.ShowAlert();
+                TitleModalBody = "کامیون مورد نظر با موفقیت حذف گردید!";
+                //navigationManager.NavigateTo("/");
+            }
+            else
+            {
+                this.Alert1.ShowAlert();
+                TitleModalBody = "خطایی رخ داده است!";
+            }
+
+        }
+
+    }
+
+    //For Update In Grid  Edit.Mode
+    public async Task UpdateHandler(GridCommandEventArgs args)
+    {
+        //Person currItem = args.Item as Person;
+
+        //await TruckService.UpdateUserAsync(currItem);
+
+        await GetAllTruckAsync();
+    }
+
+
+
+}

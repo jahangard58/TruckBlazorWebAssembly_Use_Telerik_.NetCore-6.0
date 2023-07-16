@@ -1,0 +1,60 @@
+﻿@page "/fetchdata"
+@using TruckBlazorWebAssembly.Shared
+@inject HttpClient httpClient
+
+<PageTitle>Weather forecast</PageTitle>
+
+<h1>Weather forecast</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (trucks == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+
+                <th>ID</th>
+                <th>Title</th>
+                <th>BarCode</th>
+                <th>SmartCode</th>
+                <th>OwnerName</th>
+                <th>OwnerMobile</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in trucks)
+            {
+                <tr>
+                    <td>@item.ID</td>
+                    <td>@item.Title</td>
+                    <td>@item.Barcode</td>
+                    <td>@item.SmartCode</td>
+                    <td>@item.OwnerName</td>
+                    <td>@item.OwnerMobile</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+  
+    IList<Truck>? trucks ;
+    protected override async Task OnInitializedAsync()
+    {
+       
+        await GetAllTruckAsync();
+    }
+    private async Task<IList<Truck>> GetAllTruckAsync()
+    {
+        var lstTruck = await httpClient.GetFromJsonAsync<IList<Truck>>("Trucks"); //TrucksController
+        trucks = lstTruck.ToList();
+        return trucks;
+
+    }
+}

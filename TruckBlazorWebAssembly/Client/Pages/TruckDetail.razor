@@ -1,0 +1,178 @@
+﻿@page "/TruckDetail"
+@page "/TruckDetail/{myPassedvalueID}"
+
+@inject HttpClient httpClient
+@using TruckBlazorWebAssembly.Shared
+@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+
+<h3>TruckDetail</h3>
+
+@*-->
+        Modal
+    <--*@
+
+<TelerikDialog @bind-Visible="@VisibleModalTelerik" 
+               Title="@TitleModalTelerik" Class="border-success" >
+    <DialogContent>
+        @TitleModalContent
+       @* A new version of <strong>Telerik UI for Blazor</strong> is available. Would you like to download and install it now?*@
+    </DialogContent>
+    <DialogButtons>
+        <TelerikButton OnClick="@(() => { VisibleModalTelerik = false; })">Close</TelerikButton>
+        <TelerikButton OnClick="@(() => { VisibleModalTelerik = false; navigationManager.NavigateTo("/TruckList");})" ThemeColor="primary">ListTruk</TelerikButton>
+    </DialogButtons>
+</TelerikDialog>
+
+@*-->
+        Modal
+    <--*@
+
+<div class="col-12  col-md-6 col-lg-12 border-primary " style="margin-top:1%">
+    <TelerikForm Model="@truck" @ref="@FormReference" OnValidSubmit="@HandleValidSubmit" OnInvalidSubmit="@HandleInvalidSubmit">
+        <FormValidation>
+            <DataAnnotationsValidator></DataAnnotationsValidator>
+            <TelerikValidationSummary></TelerikValidationSummary>
+        </FormValidation>
+
+        <FormItems>
+            @*<FormItem Field="@nameof(truck.ID)" Class="hide border-success" LabelText="کد"></FormItem>*@
+            @*@* <FormItem Field="@nameof(truck.CompanyID)" Class="hide border-success" LabelText="کد"></FormItem>*@
+            @*<FormItem Field="@nameof(truck.ModelID)" Class="hide border-success" LabelText="کد"></FormItem>*@
+
+            <FormItem Field="@nameof(truck.Title)" EditorType="@FormEditorType.TextBox" LabelText="مشخصه کامیون" Class="border-bottom border-success"></FormItem>
+            <FormItem Field="@nameof(truck.SmartCode)" EditorType="@FormEditorType.TextBox" LabelText="کد هوشمند" Class="border-bottom border-success"></FormItem>
+            <FormItem Field="@nameof(truck.OwnerName)" EditorType="@FormEditorType.TextBox" LabelText="مالک کامیون" Class="border-bottom border-success"></FormItem>
+            <FormItem Field="@nameof(truck.OwnerMobile)" EditorType="@FormEditorType.TextBox" LabelText="همراه مالک" Class="border-bottom border-success"></FormItem>
+            <FormItem Field="@nameof(truck.Barcode)" EditorType="@FormEditorType.TextBox" LabelText="بارکد" Class="border-bottom border-success"></FormItem>
+            <FormItem Field="@nameof(truck.Carryingweight)"   LabelText="وزن بار" Class="border-bottom border-success"></FormItem>
+
+
+
+        </FormItems>
+        <FormButtons>
+            <TelerikButton ButtonType="@ButtonType.Button" OnClick="@CancelForm">Cancel</TelerikButton>
+            <TelerikButton ButtonType="@ButtonType.Submit" ThemeColor="@(ThemeConstants.Button.ThemeColor.Primary)">@btnActionName</TelerikButton>
+        </FormButtons>
+
+
+    </TelerikForm>
+</div>
+
+
+
+
+
+
+
+
+@code {
+    [Parameter]
+    public string myPassedvalueID { get; set; } = String.Empty;
+
+    //Get Prameter up
+    public string Items { get; set; }
+
+    public TruckViewModel? truck = new TruckViewModel();
+
+    private TelerikForm FormReference { get; set; }
+
+    private string btnActionName { get; set; } = "Save";
+
+    //Modal
+    private bool VisibleModalTelerik { get; set; } = false;
+    private string TitleModalTelerik { get; set; } = "Software Update";
+    private string TitleModalContent { get; set; } = String.Empty;
+    //Modal
+
+    //Valid Invalid
+    public bool ValidSubmit { get; set; } = false;
+    protected override async Task OnInitializedAsync()
+    {
+        Items = myPassedvalueID;
+
+        if (Items != null)
+        {
+            //Update Code
+            btnActionName = "Update";
+            truck = await httpClient.GetFromJsonAsync<TruckViewModel>($"Trucks/{Convert.ToInt32(Items)}");
+        }
+        else
+        {
+            //Insert
+            btnActionName = "Save";
+        }
+
+    }
+
+    async Task HandleValidSubmit()
+    {
+
+        if (Items == null)
+        {
+            await CreateHandel(truck);
+        }
+        else
+        {
+            await UpdateHandel(truck);
+        }
+
+
+
+    }
+    async Task CreateHandel(TruckViewModel truckViewModel)
+    {
+
+
+        truckViewModel.Title = truck.Title;
+        truckViewModel.Barcode = truck.Barcode;
+        truckViewModel.SmartCode = truck.SmartCode;
+        truckViewModel.OwnerName = truck.OwnerName;
+        truckViewModel.OwnerMobile = truck.OwnerMobile;
+
+        var result = await httpClient.PostAsJsonAsync("Trucks", truckViewModel);
+        if (result.IsSuccessStatusCode)
+        {
+            //navigationManager.NavigateTo("/TruckList");
+            TitleModalTelerik = "Save Success !!!";
+            TitleModalContent = "Save Truck Success";
+            VisibleModalTelerik = true;
+        }
+        else
+        {
+            // Show Error
+        }
+
+    }
+    async Task UpdateHandel(TruckViewModel truckViewModel)
+    {
+        truckViewModel.Title = truck.Title;
+        truckViewModel.Barcode = truck.Barcode;
+        truckViewModel.SmartCode = truck.SmartCode;
+        truckViewModel.OwnerName = truck.OwnerName;
+        truckViewModel.OwnerMobile = truck.OwnerMobile;
+
+        var result = await httpClient.PutAsJsonAsync($"Trucks/{Items}", truckViewModel);
+        if (result.IsSuccessStatusCode)
+        {
+            //navigationManager.NavigateTo("/TruckList");
+            TitleModalTelerik = "Update Success !!!";
+            TitleModalContent = "Update Truck Success";
+            VisibleModalTelerik = true;
+
+        }
+        else
+        {
+            //Show Error
+
+        }
+
+    }
+    public void CancelForm()
+    {
+
+    }
+    void HandleInvalidSubmit()
+    {
+        ValidSubmit = false;
+    }
+}
